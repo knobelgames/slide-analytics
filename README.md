@@ -34,20 +34,6 @@ A client-side browser application for analyzing and compressing PowerPoint (.ppt
 - **Data residency**: All processing happens on the end user's device. No data crosses any network boundary.
 - **Audit**: The complete source code is available in this repository. The production build can be reproduced via `npm ci && npm run build` and diffed against the deployed version.
 
-### Recommended Deployment Headers
-
-When deploying behind a reverse proxy or CDN, the following HTTP headers are recommended:
-
-```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'none'; worker-src 'self' blob:
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-Referrer-Policy: no-referrer
-Permissions-Policy: camera=(), microphone=(), geolocation=()
-```
-
-Note: `'wasm-unsafe-eval'` is required for WebAssembly execution. `worker-src 'self' blob:` allows OxiPNG's Web Worker. `connect-src 'none'` enforces at the browser level that no outbound network requests can be made.
-
 ## Features
 
 ### Analysis
@@ -124,9 +110,54 @@ npm run preview    # Preview production build locally
 
 ## Deployment
 
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys to GitHub Pages on every push to `main`.
+### GitHub Pages (default)
 
-The production build is a set of static files in `dist/` (~500 KB gzipped, including WASM binaries) that can be hosted on any static file server.
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys to GitHub Pages on every push to `main`. No configuration required.
+
+### Self-Hosting (Intranet / Own Infrastructure)
+
+The production build is a set of static files (~500 KB gzipped, including WASM binaries). There is no backend, no runtime, no database — just files served by any HTTP server.
+
+**Build:**
+
+```bash
+git clone <repo-url>
+cd slide-compressor
+npm ci            # requires Node.js >= 18
+npm run build     # produces dist/
+```
+
+**Deploy:** Copy the `dist/` folder to any static file server — Apache, Nginx, IIS, Caddy, Cloudflare Pages, Azure Static Web Apps, Netlify, Vercel, or any equivalent. No Node.js or other runtime is needed on the server.
+
+**Reproducibility:** The build is fully deterministic. Running `npm ci && npm run build` from the same commit will produce the same output, which can be diffed against the deployed version for audit purposes.
+
+### Requirements
+
+| | To build | To host |
+|---|---|---|
+| Node.js >= 18 | Yes | No |
+| Web server | No | Yes (any) |
+| Backend / runtime | No | No |
+| Database | No | No |
+| Secrets / API keys | No | No |
+| Internet access (app) | No | No |
+
+### Recommended HTTP Headers
+
+When serving behind a reverse proxy or web server, configure these headers for security hardening:
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'none'; worker-src 'self' blob:
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+Notes:
+- `wasm-unsafe-eval` is required for WebAssembly image compression (MozJPEG, OxiPNG).
+- `worker-src 'self' blob:` allows OxiPNG's Web Worker.
+- `connect-src 'none'` enforces at the browser level that the application cannot make any outbound network requests.
 
 ## License
 
