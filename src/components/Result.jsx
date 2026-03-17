@@ -14,12 +14,13 @@ export default function Result({ result, onReset }) {
     imagesProcessed,
     imagesSkipped,
     jpegCount,
+    formatChanges,
+    mode,
   } = result;
 
   const saved = originalSize - compressedSize;
   const pct = originalSize > 0 ? ((saved / originalSize) * 100).toFixed(1) : "0";
 
-  // Create blob URL and revoke on unmount to prevent memory leaks
   const downloadUrl = useMemo(() => URL.createObjectURL(blob), [blob]);
   useEffect(() => {
     return () => URL.revokeObjectURL(downloadUrl);
@@ -48,11 +49,17 @@ export default function Result({ result, onReset }) {
             <span className="text-zinc-200">{imagesSkipped}</span>
           </div>
         </div>
-        {jpegCount > 0 && (
-          <p className="text-xs text-zinc-600 text-center">
-            {jpegCount} JPEG{jpegCount > 1 ? "s" : ""} unangetastet (bereits komprimiert)
+        <div className="text-xs text-zinc-600 text-center space-y-0.5">
+          <p>
+            Modus: {mode === "visual" ? "Visuell verlustfrei (MozJPEG + OxiPNG)" : "Strikt lossless (OxiPNG)"}
           </p>
-        )}
+          {formatChanges > 0 && (
+            <p>{formatChanges} Bild{formatChanges !== 1 ? "er" : ""} konvertiert (PNG → JPEG)</p>
+          )}
+          {jpegCount > 0 && mode === "lossless" && (
+            <p>{jpegCount} JPEG{jpegCount > 1 ? "s" : ""} unangetastet</p>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-3">

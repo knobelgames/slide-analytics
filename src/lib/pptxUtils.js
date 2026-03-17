@@ -53,16 +53,25 @@ export async function renameImageInZip(zip, oldPath, newPath) {
     }
   }
 
-  // Ensure [Content_Types].xml has PNG extension
+  // Ensure [Content_Types].xml has the target extension registered
   const ctFile = zip.file("[Content_Types].xml");
   if (ctFile) {
     let ct = await ctFile.async("string");
-    if (!ct.includes('Extension="png"')) {
+    const newExt = newPath.split(".").pop().toLowerCase();
+
+    if (newExt === "png" && !ct.includes('Extension="png"')) {
       ct = ct.replace(
         "</Types>",
         '<Default Extension="png" ContentType="image/png"/></Types>',
       );
-      zip.file("[Content_Types].xml", ct);
     }
+    if ((newExt === "jpeg" || newExt === "jpg") && !ct.includes('Extension="jpeg"') && !ct.includes('Extension="jpg"')) {
+      ct = ct.replace(
+        "</Types>",
+        '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>',
+      );
+    }
+
+    zip.file("[Content_Types].xml", ct);
   }
 }

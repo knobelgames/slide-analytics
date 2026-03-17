@@ -2,22 +2,19 @@ import JSZip from "jszip";
 import { processImage } from "./imageUtils";
 import { renameImageInZip } from "./pptxUtils";
 
-const SUPPORTED_EXTENSIONS = ["png", "bmp", "tiff", "tif"];
-// JPEGs are excluded — can't losslessly recompress in browser
+const SUPPORTED_EXTENSIONS = ["png", "jpg", "jpeg", "bmp", "tiff", "tif"];
 const MIN_SIZE = 50 * 1024; // Skip images < 50 KB
-const MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024; // 500 MB zip bomb limit
+const MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024;
 
 /**
- * Compress a PPTX file losslessly.
- * No resize, no crop, no quality loss. Images keep their exact dimensions.
- * - Re-encodes PNGs (same pixels, potentially better compression)
- * - Converts BMP/TIFF → PNG (same pixels, much smaller)
- * - Better ZIP compression (DEFLATE level 9)
+ * Compress a PPTX file.
  *
  * @param {File} file
+ * @param {"visual"|"lossless"} mode
  * @param {function} onProgress - ({ current, total, fileName })
+ * @param {number} jpegQuality - 1–100, only for visual mode
  */
-export async function compressPptx(file, onProgress) {
+export async function compressPptx(file, mode, onProgress, jpegQuality = 75) {
   const arrayBuffer = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(arrayBuffer);
 
@@ -36,23 +33,28 @@ export async function compressPptx(file, onProgress) {
     );
   }
 
-  // Find all re-encodable images in ppt/media/ (no JPEGs)
-  const imageEntries = Object.keys(zip.files).filter((path) => {
+  // In lossless mode, skip JPEGs (can't losslessly recompress)
+  const imageEntries = allPaths.filter((path) => {
     if (!path.startsWith("ppt/media/")) return false;
     const ext = path.split(".").pop().toLowerCase();
+    if (mode === "lossless" && (ext === "jpg" || ext === "jpeg")) return false;
     return SUPPORTED_EXTENSIONS.includes(ext);
   });
 
-  // Also count JPEGs for display
-  const jpegCount = Object.keys(zip.files).filter((path) => {
-    if (!path.startsWith("ppt/media/")) return false;
-    const ext = path.split(".").pop().toLowerCase();
-    return ext === "jpg" || ext === "jpeg";
-  }).length;
+  // Count skipped JPEGs for display
+  const jpegCount =
+    mode === "lossless"
+      ? allPaths.filter((p) => {
+          if (!p.startsWith("ppt/media/")) return false;
+          const ext = p.split(".").pop().toLowerCase();
+          return ext === "jpg" || ext === "jpeg";
+        }).length
+      : 0;
 
   const total = imageEntries.length;
   let imagesProcessed = 0;
   let imagesSkipped = 0;
+  let formatChanges = 0;
 
   for (let i = 0; i < imageEntries.length; i++) {
     const imagePath = imageEntries[i];
@@ -69,29 +71,24 @@ export async function compressPptx(file, onProgress) {
       continue;
     }
 
-    let mimeType = "image/png";
-    if (ext === "bmp") mimeType = "image/bmp";
-    else if (ext === "tiff" || ext === "tif") mimeType = "image/tiff";
-
-    const blob = new Blob([originalData], { type: mimeType });
-
     try {
-      const result = await processImage(blob, ext);
+      const result = await processImage(originalData, ext, mode, jpegQuality);
 
       if (result === null) {
         imagesSkipped++;
         continue;
       }
 
-      // Only replace if result is smaller
-      if (result.blob.size < originalData.byteLength) {
-        const newData = await result.blob.arrayBuffer();
+      // Only replace if smaller
+      if (result.data.byteLength < originalData.byteLength) {
+        const newData = result.data;
 
-        // If format changed (bmp/tiff → png), rename in zip + update refs
         if (result.newExt !== ext) {
+          // Format changed → rename + update refs
           const newPath = imagePath.replace(/\.[^.]+$/, "." + result.newExt);
           await renameImageInZip(zip, imagePath, newPath);
           zip.file(newPath, newData);
+          formatChanges++;
         } else {
           zip.file(imagePath, newData);
         }
@@ -117,5 +114,7 @@ export async function compressPptx(file, onProgress) {
     imagesProcessed,
     imagesSkipped: imagesSkipped + jpegCount,
     jpegCount,
+    formatChanges,
+    mode,
   };
 }

@@ -123,7 +123,7 @@ function ImageSection({ title, images, totalSize, fileSize, color, badge }) {
   );
 }
 
-export default function Analysis({ analysis, onCompress, onReset }) {
+export default function Analysis({ analysis, onCompress, onReset, mode, onModeChange }) {
   const {
     fileSize,
     totalImages,
@@ -239,13 +239,50 @@ export default function Analysis({ analysis, onCompress, onReset }) {
         badge="bg-zinc-800 text-zinc-400"
       />
 
+      {/* Compression mode */}
+      <div className="bg-zinc-900 rounded-lg p-5 space-y-3">
+        <h3 className="text-sm font-bold text-zinc-300">Kompression</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onModeChange("visual")}
+            className={`p-3 rounded-lg border text-left transition-colors ${
+              mode === "visual"
+                ? "border-emerald-500 bg-emerald-500/10"
+                : "border-zinc-700 hover:border-zinc-500"
+            }`}
+          >
+            <div className="text-sm font-medium text-zinc-200">
+              Visuell verlustfrei
+            </div>
+            <div className="text-xs text-zinc-500 mt-1">
+              Wie TinyPNG. MozJPEG + OxiPNG. 50–80% kleiner.
+            </div>
+          </button>
+          <button
+            onClick={() => onModeChange("lossless")}
+            className={`p-3 rounded-lg border text-left transition-colors ${
+              mode === "lossless"
+                ? "border-emerald-500 bg-emerald-500/10"
+                : "border-zinc-700 hover:border-zinc-500"
+            }`}
+          >
+            <div className="text-sm font-medium text-zinc-200">
+              Strikt lossless
+            </div>
+            <div className="text-xs text-zinc-500 mt-1">
+              Kein Qualitaetsverlust. OxiPNG + DEFLATE. 5–20% kleiner.
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex gap-3">
         <button
           onClick={onCompress}
           className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-center py-3 rounded-lg font-medium transition-colors"
         >
-          Komprimieren
+          Komprimieren ({mode === "visual" ? "visuell" : "lossless"})
         </button>
         <button
           onClick={onReset}

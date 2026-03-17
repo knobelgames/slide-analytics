@@ -19,6 +19,7 @@ export default function App() {
   const [state, setState] = useState(STATES.IDLE);
   const [file, setFile] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [mode, setMode] = useState("visual");
   const [progress, setProgress] = useState({ current: 0, total: 0, fileName: "" });
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -42,7 +43,7 @@ export default function App() {
     setProgress({ current: 0, total: 0, fileName: "" });
 
     try {
-      const res = await compressPptx(file, setProgress);
+      const res = await compressPptx(file, mode, setProgress);
       res.fileName = file.name.replace(/\.pptx$/, "_komprimiert.pptx");
       setResult(res);
       setState(STATES.DONE);
@@ -66,7 +67,7 @@ export default function App() {
         <header className="text-center space-y-1">
           <h1 className="text-2xl font-bold text-zinc-100">PPTX Kompressor</h1>
           <p className="text-sm text-zinc-500">
-            100% lokal im Browser &middot; kein Upload &middot; lossless
+            100% lokal im Browser &middot; kein Upload &middot; kein Server
           </p>
         </header>
 
@@ -81,6 +82,8 @@ export default function App() {
             analysis={analysis}
             onCompress={handleCompress}
             onReset={handleReset}
+            mode={mode}
+            onModeChange={setMode}
           />
         )}
 
